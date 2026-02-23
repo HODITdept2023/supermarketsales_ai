@@ -2,11 +2,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 
-# ---------------- LOGIN ---------------- #
+
+# ================= LOGIN ================= #
 
 ADMIN_USER = "admin"
 ADMIN_PASS = "csdavanthi2026"
@@ -38,7 +40,7 @@ if not st.session_state["login"]:
     st.stop()
 
 
-# ---------------- SIDEBAR ---------------- #
+# ================= SIDEBAR ================= #
 
 st.sidebar.title("Navigation")
 
@@ -48,12 +50,13 @@ menu = st.sidebar.radio(
 )
 
 
-# ---------------- DATA STORAGE ---------------- #
+# ================= DATA STORAGE ================= #
 
 if "data" not in st.session_state:
     st.session_state["data"] = None
 
-# ---------------- DASHBOARD ---------------- #
+
+# ================= DASHBOARD ================= #
 
 if menu == "Dashboard":
 
@@ -65,17 +68,20 @@ if menu == "Dashboard":
 
     data = st.session_state["data"]
 
-    months = [f"M{i}" for i in range(1,13)]
+    months = [f"M{i}" for i in range(1, 13)]
     sales = data["Sales"]
 
-    # PIE CHART
+    # -------- PIE CHART -------- #
+
     st.subheader("Monthly Sales Distribution")
 
     fig1, ax1 = plt.subplots()
     ax1.pie(sales, labels=months, autopct='%1.1f%%')
     st.pyplot(fig1)
 
-    # LSTM MODEL
+
+    # -------- LSTM MODEL -------- #
+
     df = pd.DataFrame(data)
 
     scaler = MinMaxScaler()
@@ -91,8 +97,9 @@ if menu == "Dashboard":
     X = np.array(X)
     y = np.array(y)
 
+
     model = Sequential([
-        LSTM(64, return_sequences=True, input_shape=(4,9)),
+        LSTM(64, return_sequences=True, input_shape=(4, 9)),
         Dropout(0.2),
         LSTM(32),
         Dense(1)
@@ -101,36 +108,55 @@ if menu == "Dashboard":
     model.compile(optimizer="adam", loss="mse")
     model.fit(X, y, epochs=100, verbose=0)
 
-    # PREDICTION
+
+    # -------- PREDICTION -------- #
+
     last = scaled[-4:]
     future = []
 
-    current = last.reshape(1,4,9)
+    current = last.reshape(1, 4, 9)
 
     for i in range(12):
 
         pred = model.predict(current, verbose=0)
         future.append(pred[0][0])
 
-        next_row = current[0,-1].copy()
+        next_row = current[0, -1].copy()
         next_row[0] = pred[0][0]
 
-        next_row = next_row.reshape(1,1,9)
+        next_row = next_row.reshape(1, 1, 9)
 
-        current = np.concatenate((current[:,1:,:], next_row), axis=1)
+        current = np.concatenate(
+            (current[:, 1:, :], next_row),
+            axis=1
+        )
 
-    dummy = np.zeros((12,9))
-    dummy[:,0] = future
 
-    predicted = scaler.inverse_transform(dummy)[:,0]
+    dummy = np.zeros((12, 9))
+    dummy[:, 0] = future
 
-    # LINE GRAPH
+    predicted = scaler.inverse_transform(dummy)[:, 0]
+
+
+    # -------- LINE GRAPH -------- #
+
     st.subheader("Actual vs Predicted Sales")
 
     fig2, ax2 = plt.subplots()
 
-    ax2.plot(range(1,13), sales, label="Actual Sales", marker="o")
-    ax2.plot(range(13,25), predicted, label="Predicted Sales", marker="o")
+    ax2.plot(
+        range(1, 13),
+        sales,
+        label="Actual Sales",
+        marker="o"
+    )
+
+    ax2.plot(
+        range(13, 25),
+        predicted,
+        label="Predicted Sales",
+        marker="o"
+    )
 
     ax2.set_xlabel("Month")
     ax2.set_ylabel("Sales")
@@ -139,17 +165,30 @@ if menu == "Dashboard":
     st.pyplot(fig2)
 
 
-# ---------------- DATA INPUT ---------------- #
+# ================= DATA INPUT ================= #
 
 elif menu == "Data Input":
 
     st.title("📝 Enter Monthly Data")
 
     def get_values(msg):
-        return list(map(float, st.text_input(msg).split(",")))
+
+        text = st.text_input(msg)
+
+        if text.strip() == "":
+            return []
+
+        try:
+            values = list(map(float, text.split(",")))
+            return values
+
+        except:
+            st.error(f"Invalid input in {msg}. Use numbers separated by commas.")
+            return []
 
 
-    st.info("Enter 12 values separated by commas")
+    st.info("Enter exactly 12 values separated by commas")
+
 
     sales = get_values("Sales")
     profit = get_values("Profit")
@@ -165,34 +204,53 @@ elif menu == "Data Input":
 
     if st.button("Save Data"):
 
-        columns = [sales,profit,customers,discount,
-                   rice,oil,sugar,milk,soap]
+        columns = [
+            sales, profit, customers, discount,
+            rice, oil, sugar, milk, soap
+        ]
 
-        for col in columns:
-            if len(col)!=12:
-                st.error("Each field must have exactly 12 values")
+        names = [
+            "Sales", "Profit", "Customers", "Discount",
+            "Rice", "Oil", "Sugar", "Milk", "Soap"
+        ]
+
+
+        # -------- VALIDATION -------- #
+
+        for name, col in zip(names, columns):
+
+            if len(col) == 0:
+                st.error(f"{name} field is empty")
                 st.stop()
 
+            if len(col) != 12:
+                st.error(f"{name} must have exactly 12 values")
+                st.stop()
+
+
+        # -------- CREATE DATAFRAME -------- #
+
         df = pd.DataFrame({
-            "Sales":sales,
-            "Profit":profit,
-            "Customers":customers,
-            "Discount":discount,
-            "Rice":rice,
-            "Oil":oil,
-            "Sugar":sugar,
-            "Milk":milk,
-            "Soap":soap
+            "Sales": sales,
+            "Profit": profit,
+            "Customers": customers,
+            "Discount": discount,
+            "Rice": rice,
+            "Oil": oil,
+            "Sugar": sugar,
+            "Milk": milk,
+            "Soap": soap
         })
+
 
         st.session_state["data"] = df
 
-        st.success("Data Saved Successfully")
 
+        st.success("✅ Data Saved Successfully")
         st.dataframe(df)
 
 
-# ---------------- BASKET RECOMMENDATION ---------------- #
+# ================= BASKET RECOMMENDATION ================= #
 
 elif menu == "Basket Recommendation":
 
@@ -204,18 +262,21 @@ elif menu == "Basket Recommendation":
 
     data = st.session_state["data"]
 
-    products = ["Rice","Oil","Sugar","Milk","Soap"]
+    products = ["Rice", "Oil", "Sugar", "Milk", "Soap"]
 
     movement = {}
 
     for p in products:
         movement[p] = data[p].iloc[0] - data[p].iloc[-1]
 
+
     st.subheader("Fast Moving Products")
 
-    sorted_move = sorted(movement.items(),
-                         key=lambda x:x[1],
-                         reverse=True)
+    sorted_move = sorted(
+        movement.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
 
     for item in sorted_move:
         st.write(f"{item[0]} → Sold Units: {int(item[1])}")
@@ -228,17 +289,18 @@ elif menu == "Basket Recommendation":
     found = False
 
     for i in range(len(products)):
-        for j in range(i+1,len(products)):
+        for j in range(i+1, len(products)):
 
-            if corr.iloc[i,j] > 0.6:
+            if corr.iloc[i, j] > 0.6:
                 st.success(f"{products[i]} + {products[j]}")
                 found = True
+
 
     if not found:
         st.info("No strong product combinations detected.")
 
 
-# ---------------- LOGOUT ---------------- #
+# ================= LOGOUT ================= #
 
 elif menu == "Logout":
 
