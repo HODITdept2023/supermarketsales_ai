@@ -16,7 +16,7 @@ ADMIN_PASS = "csdavanthi2026"
 
 def login():
 
-    st.title("INV Technologies - Retail AI Dashboard")
+    st.title("SMART - Retail AI Dashboard")
 
     user = st.text_input("Username")
     pwd = st.text_input("Password", type="password")
